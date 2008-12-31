@@ -1,0 +1,5 @@
+; $Id$
+name        = YubiKey
+description = "Allows users to log into your site using YubiKey."
+package     = Authentication
+core        = 6.x
