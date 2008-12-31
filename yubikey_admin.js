@@ -1,3 +1,5 @@
+// $Id$
+
 $(document).ready(function() {
   if(!$("#edit-yubikey-enable").is(':checked')) {
     $('#api_fields_div').hide();
