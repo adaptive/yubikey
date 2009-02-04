@@ -18,8 +18,8 @@ function yubikey_validate($otp, &$errstr) {
     return FALSE;
   }
 
-  $api_key = variable_get('yubikey_apikey');
-  $id      = variable_get('yubikey_apiid');
+  $api_key = variable_get('yubikey_apikey', NULL);
+  $id      = variable_get('yubikey_apiid', NULL);
   $timeout = variable_get('yubikey_timeout', 10);
 
   $api_url = "https://api.yubico.com/wsapi/verify";

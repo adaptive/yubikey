@@ -143,7 +143,7 @@ function yubikey_admin_page() {
   $form['yubikey']['apikey'] = array(
     '#type'          => 'textfield',
     '#title'         => t('API Key'),
-    '#default_value' => variable_get('yubikey_apikey'),
+    '#default_value' => variable_get('yubikey_apikey', NULL),
     '#size'          => 32,
     '#maxlength'     => 128,
     '#required'      => TRUE,
@@ -152,7 +152,7 @@ function yubikey_admin_page() {
   $form['yubikey']['apiid'] = array(
     '#type'          => 'textfield',
     '#title'         => t('API ID'),
-    '#default_value' => variable_get('yubikey_apiid'),
+    '#default_value' => variable_get('yubikey_apiid', NULL),
     '#size'          => 6,
     '#maxlength'     => 128,
     '#required'      => TRUE
