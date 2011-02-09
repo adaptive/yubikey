@@ -1,5 +1,9 @@
 <?php
 // $Id$
+/*
+ * @file
+ * Install file for yubikey module
+ */
 /**
  * Implementation of hook_requirements()
  *
@@ -20,7 +24,7 @@ function yubikey_requirements($phase) {
     }
   }
 
-  else if ($phase == 'runtime') {
+  elseif ($phase == 'runtime') {
     if (!function_exists('curl_init')) {
       $requirements['curl_init'] = array(
         'title' => $t('cURL Library'),

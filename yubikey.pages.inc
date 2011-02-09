@@ -140,6 +140,14 @@ function yubikey_admin_page() {
     '#title'         => t('Enable Yubikey Authentication'),
     '#default_value' => variable_get('yubikey_enabled', FALSE)
   );
+  $form['yubikey']['apiurl'] = array(
+    '#type'          => 'textfield',
+    '#title'         => t('API URL'),
+    '#default_value' => variable_get('yubikey_apiurl', 'https://api.yubico.com/wsapi/verify'),
+    '#size'          => 32,
+    '#required'      => TRUE,
+    '#prefix'        => '<div id="api_fields_div">'
+  );
   $form['yubikey']['apikey'] = array(
     '#type'          => 'textfield',
     '#title'         => t('API Key'),
@@ -147,7 +155,6 @@ function yubikey_admin_page() {
     '#size'          => 32,
     '#maxlength'     => 128,
     '#required'      => TRUE,
-    '#prefix'        => '<div id="api_fields_div">'
   );
   $form['yubikey']['apiid'] = array(
     '#type'          => 'textfield',
@@ -181,6 +188,7 @@ function yubikey_admin_page() {
 function yubikey_admin_page_submit($form_id, &$form_state) {
   if ($form_state['values']['op'] == t('Reset to defaults')) {
     variable_del('yubikey_enabled');
+    variable_del('yubikey_apiurl');
     variable_del('yubikey_apikey');
     variable_del('yubikey_apiid');
     variable_del('yubikey_tolerance');
@@ -188,11 +196,13 @@ function yubikey_admin_page_submit($form_id, &$form_state) {
   }
   else {
     $enabled   = $form_state['values']['yubikey']['enable'];
+    $apiurl    = $form_state['values']['yubikey']['apiurl'];
     $apikey    = $form_state['values']['yubikey']['apikey'];
     $apiid     = $form_state['values']['yubikey']['apiid'];
     $tolerance = $form_state['values']['yubikey']['tolerance'];
     $timeout   = $form_state['values']['yubikey']['timeout'];
     variable_set('yubikey_enabled',   $enabled);
+    variable_set('yubikey_apiurl',    $apiurl);
     variable_set('yubikey_apikey',    $apikey);
     variable_set('yubikey_apiid',     $apiid);
     variable_set('yubikey_tolerance', $tolerance);
