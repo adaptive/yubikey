@@ -1,5 +1,6 @@
 ; $Id$
 name        = YubiKey
-description = "Allows users to log into your site using YubiKey."
+description = "Provides YubiKey based strong two-factor user authentication capabilities to your site."
 package     = Authentication
 core        = 6.x
+

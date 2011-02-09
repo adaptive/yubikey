@@ -1,34 +1,9 @@
-/* $Id$ */
-
 #edit-yubikey-otp {
   background-image: url("yubico-icon-small.gif");
-  background-position: 0% 50%;
+  background-position: 2px 50%;
   background-repeat: no-repeat;
   padding-left: 20px;
 }
-
 div#edit-yubikey-otp-wrapper {
   display: block;
-}
-
-html.js #user-login-form div#edit-yubikey-otp-wrapper,
-html.js #user-login div#edit-yubikey-otp-wrapper {
-  display: none;
-}
-
-html.js #user-login-form li.yubikey-link,
-html.js #user-login li.yubikey-link {
-  display : block;
-}
-
-#user-login-form li.yubikey-link,
-#user-login-form li.yubikey-user-link,
-#user-login li.yubikey-link,
-#user-login li.yubikey-user-link {
-  display: none;
-}
-
-#user-login-form li.yubikey-link,
-#user-login-form li.yubikey-user-link {
-  text-align : left;
 }
