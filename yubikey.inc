@@ -19,7 +19,7 @@ function yubikey_valid_url($url) {
   return valid_url($url, $absolute);
 }
 
-/* 
+/*
  * Get YubiKey identity from OTP.
  */
 function yubikey_get_identity($otp) {
@@ -49,7 +49,7 @@ function yubikey_validate_otp($otp, &$errstr) {
     $errstr = t("A required PHP library is missing.");
     return FALSE;
   }
-  
+
   module_load_include('php', 'yubikey', 'Yubico');
 
   $api_id = variable_get('yubikey_valserver_api_id', NULL);
