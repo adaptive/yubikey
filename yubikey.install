@@ -38,6 +38,9 @@ function yubikey_uninstall() {
   variable_del('yubikey_mail_yubikey_lost_confirmed_recipients');
   variable_del('yubikey_mail_yubikey_lost_confirmed_subject');
   variable_del('yubikey_mail_yubikey_lost_confirmed_body');
+  
+  // remove lines from authmap
+  db_query("DELETE FROM {authmap} WHERE module = 'yubikey'");
 
   // Drop table.
   drupal_uninstall_schema('yubikey');
@@ -107,4 +110,44 @@ function yubikey_requirements($phase) {
   }
 
   return $requirements;
+}
+
+/**
+ * Implementation of hook_update()
+ * 
+ * Update from 1x to 2x
+ * install new db schema
+ * move variables to 2x names
+ */
+function yubikey_update_6200() {
+  variable_set('yubikey_enabled', variable_get('yubikey_enabled', FALSE));
+  if (variable_get('yubikey_apiurl', 'https://api.yubico.com/wsapi/verify') == 'https://api.yubico.com/wsapi/verify') {
+    $yk_valserver_urls_type = 'online';
+    $yk_valserver_urls_1 = '';
+    $yk_valserver_urls = '';
+  }
+  else {
+    $yk_valserver_urls_type = 'custom';
+    $yk_valserver_urls_1 = variable_get('yubikey_apiurl', 'https://api.yubico.com/wsapi/verify');
+    $yk_valserver_urls = variable_get('yubikey_apiurl', 'https://api.yubico.com/wsapi/verify');
+  }
+  variable_set('yubikey_valserver_urls_type', $yk_valserver_urls_type);
+  variable_set('yubikey_valserver_urls_1', $yk_valserver_urls_1);
+  variable_set('yubikey_valserver_urls_2', '');
+  variable_set('yubikey_valserver_urls_3', '');
+  variable_set('yubikey_valserver_urls_4', '');
+  variable_set('yubikey_valserver_urls_5', '');
+  variable_set('yubikey_valserver_urls', $yk_valserver_urls);
+  variable_set('yubikey_valserver_api_key', variable_get('yubikey_apikey', NULL));
+  variable_set('yubikey_valserver_api_id', variable_get('yubikey_apiid', NULL));
+  variable_set('yubikey_valserver_api_https', variable_get('yubikey_tolerance', 150));
+  variable_set('yubikey_valserver_api_timeout', variable_get('yubikey_timeout', 10));
+
+  variable_del('yubikey_apiurl');
+  variable_del('yubikey_apikey');
+  variable_del('yubikey_apiid');
+  variable_del('yubikey_tolerance');
+  variable_del('yubikey_timeout'); 
+
+  drupal_install_schema('yubikey');
 }
