@@ -1,4 +1,5 @@
 <?php
+// $Id$
 /*
  * @file
  * Implement YubiKey strong two-factor authentication support for Drupal.
@@ -25,9 +26,10 @@ function yubikey_administer_access($account) {
  * Access callback for Password Reset.
  */
 function yubikey_pass_reset_access() {
-  if(!variable_get('yubikey_enabled', FALSE)) {
+  if (!variable_get('yubikey_enabled', FALSE)) {
     return user_is_anonymous();
-  } else {
+  } 
+  else {
     return user_is_anonymous() && (variable_get('yubikey_authscheme', 'un_pwd') != 'yk_only');
   }
 }
@@ -40,7 +42,7 @@ function yubikey_menu() {
   
   // YubiKey lost reporting pages.
   $items['user/yubikey/lost'] = array(
-    'title'            => t('Report lost YubiKey'),
+    'title'            => 'Report lost YubiKey',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('yubikey_lost'),
     'access callback'  => 'yubikey_user_is_anonymous',
@@ -48,7 +50,7 @@ function yubikey_menu() {
     'file'             => 'yubikey.pages.inc'
   );
   $items['user/yubikey/lost/confirm/%/%/%'] = array(
-    'title'            => t('Confirm lost YubiKey'),
+    'title'            => 'Confirm lost YubiKey',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('yubikey_lost_confirm', 4, 5, 6),
     'access callback'  => 'yubikey_user_is_anonymous',
@@ -58,7 +60,7 @@ function yubikey_menu() {
 
   // YubiKey management pages.
   $items['user/%user/yubikey'] = array(
-    'title'            => t('YubiKey identities'),
+    'title'            => 'YubiKey identities',
     'page callback'    => 'yubikey_user_identities',
     'page arguments'   => array(1),
     'access callback'  => 'yubikey_administer_access',
@@ -67,7 +69,7 @@ function yubikey_menu() {
     'file'             => 'yubikey.pages.inc'
   );
   $items['user/%user/yubikey/activate/%'] = array(
-    'title'            => t('Activate YubiKey'),
+    'title'            => 'Activate YubiKey',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('yubikey_user_activate', 1, 4),
     'access callback'  => 'yubikey_administer_access',
@@ -76,7 +78,7 @@ function yubikey_menu() {
     'file'             => 'yubikey.pages.inc',
   );
   $items['user/%user/yubikey/block/%'] = array(
-    'title'            => t('Block YubiKey'),
+    'title'            => 'Block YubiKey',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('yubikey_user_block', 1, 4),
     'access callback'  => 'yubikey_administer_access',
@@ -85,7 +87,7 @@ function yubikey_menu() {
     'file'             => 'yubikey.pages.inc',
   );
   $items['user/%user/yubikey/delete/%'] = array(
-    'title'            => t('Delete YubiKey'),
+    'title'            => 'Delete YubiKey',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('yubikey_user_delete_confirm', 1, 4),
     'access callback'  => 'yubikey_administer_access',
@@ -95,9 +97,19 @@ function yubikey_menu() {
   );
 
   // YubiKey admin settings page.
-  $items['admin/settings/yubikey'] = array(
-    'title'            => t('YubiKey settings'),
-    'description'      => t('Configure global YubiKey settings'),
+  $items['admin/config/yubikey'] = array(
+    'title'            => 'YubiKey',
+    'description'      => 'Configure global YubiKey settings',
+    'position'         => 'right',
+    'weight'           => -5,
+    'page callback'    => 'system_admin_menu_block_page',
+    'access arguments' => array('administer site configuration'),
+    'file'             => 'system.admin.inc',
+    'file path'        => drupal_get_path('module', 'system'),
+  );
+  $items['admin/config/yubikey/settings'] = array(
+    'title'            => 'Settings',
+    'description'      => 'Configure global YubiKey settings',
     'page callback'    => 'drupal_get_form',
     'page arguments'   => array('yubikey_admin_settings'),
     'access arguments' => array('administer yubikeys'),
@@ -119,8 +131,17 @@ function yubikey_menu_alter(&$items) {
 /**
  * Implementation of hook_perm().
  */
-function yubikey_perm() {
-  return array('administer yubikeys', 'administer own yubikeys');
+function yubikey_permission() {
+  return array(
+    'administer yubikeys' => array(
+      'title' => t('Administer Yubikeys'),
+      'description' => t('Perform administration tasks for the Yubikey module'),
+    ),
+    'administer own yubikeys' => array(
+      'title' => t('Administer Own Yubikeys'),
+      'description' => t('Allow the user to admnister their own Yubikeys'),
+    ),
+  );
 }
 
 /**
@@ -153,7 +174,7 @@ function yubikey_help($path, $arg) {
 /**
  * Fetch user and associated YubiKey details.
  */
-function yubikey_user_load($array = array()) {
+function yubikey_user_load_info($array = array()) {
   // Dynamically compose a SQL query:
   $query = array();
   $params = array();
@@ -161,29 +182,28 @@ function yubikey_user_load($array = array()) {
   if (is_numeric($array)) {
     $array = array('uid' => $array);
   }
-  else if (!is_array($array)) {
+  elseif (!is_array($array)) {
     return FALSE;
   }
 
   foreach ($array as $key => $value) {
     if ($key == 'uid' || $key == 'status') {
-      $query[] = "a.$key = %d";
-      $params[] = $value;
+      $query[] = "a.$key = :$key";
+      $params[":$key"] = $value;
     } 
-    else if ($key == 'aid') {
-      $query[] = "b.$key = %d";
-      $params[] = $value;
+    elseif ($key == 'aid') {
+      $query[] = "b.$key = :$key";
+      $params[":$key"] = $value;
     }
-    else if ($key == 'authname') {
-      $query[]= "LOWER(b.$key) = LOWER('%s')";
-      $params[] = $value;
+    elseif ($key == 'authname') {
+      $query[]= "LOWER(b.$key) = LOWER(:$key)";
+      $params[":$key"] = $value;
     }
   }
-
   $result = db_query("SELECT a.uid, a.name, a.mail, b.aid, b.authname, c.status yk_status FROM {users} a LEFT JOIN {authmap} b ON a.uid = b.uid AND b.module = 'yubikey' LEFT JOIN {yubikey_blocked} c ON b.uid = c.uid AND b.aid = c.aid WHERE " . implode(' AND ', $query), $params);
 
-  if ($user = db_fetch_object($result)) {
-    $user = drupal_unpack($user);
+  if ($user = $result->fetchObject()) {
+    //$user = drupal_unpack($user);
   }
   else {
     $user = FALSE;
@@ -194,7 +214,7 @@ function yubikey_user_load($array = array()) {
 /**
  * Implementation of hook_form_alter().
  */
-function yubikey_form_alter(&$form, $form_state, $form_id) {
+function yubikey_form_alter(&$form, &$form_state, $form_id) {
   if (!variable_get('yubikey_enabled', FALSE)) {
     return;
   }
@@ -202,7 +222,7 @@ function yubikey_form_alter(&$form, $form_state, $form_id) {
   if ($form_id == 'user_login_block' || $form_id == 'user_login') {
     return yubikey_login_form_alter($form, $form_state, $form_id);
   } 
-  else if($form_id == 'user_pass') {
+  elseif ($form_id == 'user_pass') {
     return yubikey_pass_form_alter($form, $form_state, $form_id);
   }
 
@@ -212,8 +232,8 @@ function yubikey_form_alter(&$form, $form_state, $form_id) {
 /**
  * Login _form_alter hook: adds YubiKey login to the login forms.
  */
-function yubikey_login_form_alter(&$form, $form_state, $form_id) {
-  drupal_add_css(drupal_get_path('module', 'yubikey') . '/yubikey.css', 'module');
+function yubikey_login_form_alter(&$form, &$form_state, $form_id) {
+  drupal_add_css(drupal_get_path('module', 'yubikey') . '/yubikey.css', 'file');
   drupal_add_js(drupal_get_path('module', 'yubikey') . '/yubikey.js');
 
   $form['yubikey_otp'] = array(
@@ -225,7 +245,7 @@ function yubikey_login_form_alter(&$form, $form_state, $form_id) {
     '#weight'        => 1
   );
 
-  if($form_id == 'user_login_block') {
+  if ($form_id == 'user_login_block') {
      $items = array();
      $items[] = l(t('Report lost YubiKey'), 'user/yubikey/lost', array('attributes' => array('title' => t('Report lost YubiKey'))));
      $form['yubikey_links'] = array(
@@ -240,8 +260,8 @@ function yubikey_login_form_alter(&$form, $form_state, $form_id) {
   $form['submit']['#weight'] = 2;
   $form['openid_links']['#weight'] = 3;
   $form['links']['#weight'] = 4;
-  unset($form['#submit']);
-  if(empty($form_state['post']['openid_identifier'])) {
+  //unset($form['#submit']);
+  if (empty($form_state['post']['openid_identifier'])) {
     $form['#validate'] = yubikey_login_default_validators();
   }
   else {
@@ -249,10 +269,10 @@ function yubikey_login_form_alter(&$form, $form_state, $form_id) {
   }
 
   $yk_authscheme = variable_get('yubikey_authscheme', 'un_pwd');
-  if($yk_authscheme == 'un_pwd_yk') {
-    if(variable_get('yubikey_optional', 0) == 1 || variable_get('yubikey_optional_if_lost', 0) == 1) {
+  if ($yk_authscheme == 'un_pwd_yk') {
+    if (variable_get('yubikey_optional', 0) == 1 || variable_get('yubikey_optional_if_lost', 0) == 1) {
       $form['yubikey_otp']['#required'] = FALSE;
-      if($form_id == 'user_login_block') {
+      if ($form_id == 'user_login_block') {
         $form['yubikey_otp']['#description'] = t('(optional until assigned)');
       } 
       else {
@@ -260,21 +280,21 @@ function yubikey_login_form_alter(&$form, $form_state, $form_id) {
       }
     } 
   }
-  else if($yk_authscheme == 'pwd_yk') {
+  elseif ($yk_authscheme == 'pwd_yk') {
     $form['name'] = NULL;
   } 
-  else if($yk_authscheme == 'un_or_yk_pwd') {
+  elseif ($yk_authscheme == 'un_or_yk_pwd') {
     $form['name'] = NULL;
     $form['yubikey_otp']['#title'] = t('Username/YubiKey OTP');
     $form['yubikey_otp']['#weight'] = -1;
   } 
-  else if($yk_authscheme == 'yk_only') {
+  elseif ($yk_authscheme == 'yk_only') {
     $form['name'] = NULL;
     $form['pass'] = NULL;
     $form['links'] = NULL;
   }
 
-  return $from;
+  return $form;
 }
 
 function yubikey_login_default_validators() {
@@ -287,10 +307,10 @@ function yubikey_login_otp_validate($form, &$form_state) {
   $yk_authscheme = variable_get('yubikey_authscheme', 'un_pwd'); 
   $otp = $form_state['values']['yubikey_otp'];
   $name = drupal_strtolower(trim($form_state['values']['name']));
-  if($otp) {
+  if ($otp) {
     // Check if OTP is valid.
-    if(!yubikey_is_otp($otp)) {
-      if($yk_authscheme == 'un_or_yk_pwd') {
+    if (!yubikey_is_otp($otp)) {
+      if ($yk_authscheme == 'un_or_yk_pwd') {
         $form_state['values']['name'] = $otp;
       }
       else {
@@ -300,14 +320,14 @@ function yubikey_login_otp_validate($form, &$form_state) {
     }
 
     // Validate OTP.
-    if(!yubikey_validate_otp($otp, $errstr)) {
-      form_set_error('yubikey_otp', t('YubiKey OTP validation failed with message: ') . $errstr);
+    if (!yubikey_validate_otp($otp, $errstr)) {
+      form_set_error('yubikey_otp', t('YubiKey OTP validation failed with message:') . ' ' . $errstr);
       return;
     }
 
     // Load the account associated with the specified YubiKey.
     $identity = yubikey_get_identity($otp);
-    $account = yubikey_user_load(array('authname' => $identity));
+    $account = yubikey_user_load_info(array('authname' => $identity));
     // Check if YubiKey is associated with a user account and it is not blocked.
     if (!isset($account->uid) || $account->yk_status != '') {
       form_set_error('yubikey_otp', t('YubiKey is not associated with your account or it has been blocked.'));
@@ -325,19 +345,24 @@ function yubikey_login_otp_validate($form, &$form_state) {
   } 
   else {
     // OTP not provided.
-    if(!empty($name) && $yk_authscheme == 'un_pwd_yk') {
-      $result = db_query("SELECT COUNT(a.uid) user_exists, COUNT(b.aid) ids_count, COUNT(c.status) blocked_ids_count, MAX(c.created) blocked_on FROM {users} a LEFT JOIN {authmap} b ON a.uid = b.uid AND b.module = 'yubikey' LEFT JOIN {yubikey_blocked} c ON b.aid = c.aid WHERE a.status = 1 AND (LOWER(a.name) = LOWER('%s') OR LOWER(a.mail) = LOWER('%s'))", $name, $name);
-      $user = db_fetch_array($result);
-      if($user && $user['user_exists'] > 0) { // Flag user_exists is 0 for blocked user.
-        if(variable_get('yubikey_optional', 0) == 1) {
+    if (!empty($name) && $yk_authscheme == 'un_pwd_yk') {
+      $result = db_query(
+        "SELECT COUNT(a.uid) user_exists, COUNT(b.aid) ids_count, COUNT(c.status) blocked_ids_count, MAX(c.created) blocked_on FROM {users} a LEFT JOIN {authmap} b ON a.uid = b.uid AND b.module = 'yubikey' LEFT JOIN {yubikey_blocked} c ON b.aid = c.aid WHERE a.status = 1 AND (LOWER(a.name) = LOWER(:name) OR LOWER(a.mail) = LOWER(:mail))", 
+        array(
+          ':name' => $name,
+          ':mail' => $name
+        ));
+      $user = $result->fetchAssoc();
+      if ($user && $user['user_exists'] > 0) { // Flag user_exists is 0 for blocked user.
+        if (variable_get('yubikey_optional', 0) == 1) {
           // OTP field is optional if user account doesn't have an associated YubiKey.
-          if($user['ids_count'] == 0) {
+          if ($user['ids_count'] == 0) {
             return;
           }
         }
-        if(variable_get('yubikey_optional_if_lost', 0) == 1) {
+        if (variable_get('yubikey_optional_if_lost', 0) == 1) {
           // OTP field is optional if user account has associated YubiKey(s) but all are blocked.
-          if($user['ids_count'] > 0 && $user['ids_count'] == $user['blocked_ids_count'] && $user['blocked_on'] > 0) {
+          if ($user['ids_count'] > 0 && $user['ids_count'] == $user['blocked_ids_count'] && $user['blocked_on'] > 0) {
             return;
           }
         }
@@ -349,13 +374,13 @@ function yubikey_login_otp_validate($form, &$form_state) {
 
 function yubikey_login_authenticate_validate($form, &$form_state) {
   $yk_authscheme = variable_get('yubikey_authscheme', 'un_pwd');
-  if($yk_authscheme == 'yk_only') {
+  if ($yk_authscheme == 'yk_only') {
     global $user;
 
     // Load the account to check if the e-mail is denied by an access rule.
     // Doing this check here saves us a user_load() in user_login_name_validate()
     // and introduces less code change for a security fix.
-    $account = user_load(array('name' => $form_state['values']['name'], 'status' => 1));
+    $account = db_query("SELECT * FROM {users} WHERE name = :name AND status = 1", array(':name' => $form_state['values']['name']))->fetchObject();
     if ($account && drupal_is_denied('mail', $account->mail)) {
       form_set_error('name', t('The name %name is registered using a reserved e-mail address and therefore could not be logged in.', array('%name' => $account->name)));
     }
@@ -372,21 +397,24 @@ function yubikey_login_authenticate_validate($form, &$form_state) {
     }
   }
   else {
+    /*$password = trim($form_state['values']['pass']);
+    $form_state['uid'] = user_authenticate($form_state['values']['name'], $password);*/
     user_login_authenticate_validate($form, $form_state);
   }
 }
 
 function yubikey_login_final_validate($form, &$form_state) {
-  global $user;
+  user_login_final_validate($form, $form_state);
+  /*global $user;
   if (!$user->uid) {
     form_set_error('name', t('Sorry, authentication failed.')); 
-  }
+  }*/
 }
 
 /**
  * Password Reset _form_alter hook : adds a YubiKey OTP field.
  */
-function yubikey_pass_form_alter(&$form, $form_state, $form_id) {
+function yubikey_pass_form_alter(&$form, &$form_state, $form_id) {
   drupal_add_css(drupal_get_path('module', 'yubikey') . '/yubikey.css', 'module');
   drupal_add_js(drupal_get_path('module', 'yubikey') . '/yubikey.js');
 
@@ -403,7 +431,7 @@ function yubikey_pass_form_alter(&$form, $form_state, $form_id) {
   $form['#validate'] = array('yubikey_pass_otp_validate', 'user_pass_validate');
   
   $yk_authscheme = variable_get('yubikey_authscheme', 'un_pwd');
-  if(($yk_authscheme == 'un_pwd_yk' && (variable_get('yubikey_optional', 0) == 1 || variable_get('yubikey_optional_if_lost', 0) == 1)) || 
+  if (($yk_authscheme == 'un_pwd_yk' && (variable_get('yubikey_optional', 0) == 1 || variable_get('yubikey_optional_if_lost', 0) == 1)) || 
       $yk_authscheme == 'un_or_yk_pwd') {
     $form['yubikey_otp']['#required'] = FALSE;
     $form['yubikey_otp']['#description'] = t('(optional until YubiKey is assigned to you)');
@@ -416,22 +444,22 @@ function yubikey_pass_otp_validate($form, &$form_state) {
   $yk_authscheme = variable_get('yubikey_authscheme', 'un_pwd');
   $otp = $form_state['values']['yubikey_otp'];
   $name = drupal_strtolower(trim($form_state['values']['name']));
-  if($otp) {
+  if ($otp) {
     // Check if OTP is valid.
-    if(!yubikey_is_otp($otp)) {
+    if (!yubikey_is_otp($otp)) {
       form_set_error('yubikey_otp', t('YubiKey OTP is not valid.'));
       return;
     }
 
     // Validate OTP.
-    if(!yubikey_validate_otp($otp, $errstr)) {
-      form_set_error('yubikey_otp', t('YubiKey OTP validation failed with message: ') . $errstr);
+    if (!yubikey_validate_otp($otp, $errstr)) {
+      form_set_error('yubikey_otp', t('YubiKey OTP validation failed with message:') . ' ' . $errstr);
       return;
     }
 
     // Load the account associated with the specified YubiKey.
     $identity = yubikey_get_identity($otp);
-    $account = yubikey_user_load(array('authname' => $identity));
+    $account = yubikey_user_load_info(array('authname' => $identity));
     if (
        // Check if YubiKey is associated with a user account.
        !isset($account->uid) ||
@@ -446,26 +474,31 @@ function yubikey_pass_otp_validate($form, &$form_state) {
   } 
   else {
     // OTP not provided.
-    if(!empty($name)) {
-      $result = db_query("SELECT COUNT(a.uid) user_exists, COUNT(b.aid) ids_count, COUNT(c.status) blocked_ids_count, MAX(c.created) blocked_on FROM {users} a LEFT JOIN {authmap} b ON a.uid = b.uid AND b.module = 'yubikey' LEFT JOIN {yubikey_blocked} c ON b.aid = c.aid WHERE a.status = 1 AND (LOWER(a.name) = LOWER('%s') OR LOWER(a.mail) = LOWER('%s'))", $name, $name);
-      $user = db_fetch_array($result);
-      if($user && $user['user_exists'] > 0) {
-        if($yk_authscheme == 'un_pwd_yk') {
-          if(variable_get('yubikey_optional', 0) == 1) {
+    if (!empty($name)) {
+      $result = db_query(
+        "SELECT COUNT(a.uid) user_exists, COUNT(b.aid) ids_count, COUNT(c.status) blocked_ids_count, MAX(c.created) blocked_on FROM {users} a LEFT JOIN {authmap} b ON a.uid = b.uid AND b.module = 'yubikey' LEFT JOIN {yubikey_blocked} c ON b.aid = c.aid WHERE a.status = 1 AND (LOWER(a.name) = LOWER(:name) OR LOWER(a.mail) = LOWER(:mail))", 
+        array(
+          ':name' => $name,
+          ':mail' => $name
+        ));
+      $user = $result->fetchAssoc();
+      if ($user && $user['user_exists'] > 0) {
+        if ($yk_authscheme == 'un_pwd_yk') {
+          if (variable_get('yubikey_optional', 0) == 1) {
             // OTP field is optional if user account doesn't have an associated YubiKey.
-            if($user['ids_count'] == 0) {
+            if ($user['ids_count'] == 0) {
               return;
             }
           }
-          if(variable_get('yubikey_optional_if_lost', 0) == 1) {
+          if (variable_get('yubikey_optional_if_lost', 0) == 1) {
             // OTP field is optional if user account has associated YubiKey(s) but all are blocked.
-            if($user['ids_count'] > 0 && $user['ids_count'] == $user['blocked_ids_count'] && $user['blocked_on'] > 0) {
+            if ($user['ids_count'] > 0 && $user['ids_count'] == $user['blocked_ids_count'] && $user['blocked_on'] > 0) {
               return;
             }
           }
         }
-        else if($yk_authscheme == 'un_or_yk_pwd') {
-          if($user['ids_count'] == 0 || ($user['ids_count'] > 0 && $user['ids_count'] == $user['blocked_ids_count'] && $user['blocked_on'] > 0)) {
+        elseif ($yk_authscheme == 'un_or_yk_pwd') {
+          if ($user['ids_count'] == 0 || ($user['ids_count'] > 0 && $user['ids_count'] == $user['blocked_ids_count'] && $user['blocked_on'] > 0)) {
             return;
           }
         }
@@ -476,14 +509,14 @@ function yubikey_pass_otp_validate($form, &$form_state) {
 }
 
 /**
- * Implementation of hook_user().
+ * Implementation of hook_user_delete().
  */
-function yubikey_user ($type, $array, $user, $category) {
-  if($type == 'delete') {
-    // User is being deleted.
-    // Delete all the records in yubikey_blocked table for the user.
-    db_query('DELETE FROM {yubikey_blocked} WHERE uid = %d', $user->uid);
-  }
+function yubikey_user_delete($account) {
+  // User is being deleted.
+  // Delete all the records in yubikey_blocked table for the user.
+  db_delete('yubikey_blocked')
+    ->condition('uid', $account->uid)
+    ->execute();
 }
 
 /**
@@ -507,11 +540,11 @@ function yubikey_user ($type, $array, $user, $category) {
  *  The return value from drupal_mail_send(), if ends up being called.
  */
 function _yubikey_mail_notify($op, $account, $language = NULL) {
-  $notify = variable_get('yubikey_mail_'. $op .'_notify', 'yubikey_lost');
+  $notify = variable_get('yubikey_mail_' . $op . '_notify', 'yubikey_lost');
   if ($notify) {
     $params['account'] = $account;
     $language = $language ? $language : user_preferred_language($account);
-    if($op == 'yubikey_lost_confirmed') {
+    if ($op == 'yubikey_lost_confirmed') {
       // Notify the specified recipients using site default language.
       $recipients = variable_get('yubikey_mail_yubikey_lost_confirmed_recipients', variable_get('site_mail', ini_get('sendmail_from')));
       $mail = drupal_mail('yubikey', $op, $recipients, language_default(), $params);
@@ -529,8 +562,8 @@ function _yubikey_mail_notify($op, $account, $language = NULL) {
 function yubikey_mail($key, &$message, $params) {
   $language = $message['language'];
   $variables = yubikey_mail_tokens($params['account'], $language);
-  $message['subject'] .= _yubikey_mail_text($key .'_subject', $language, $variables);
-  $message['body'][] = _yubikey_mail_text($key .'_body', $language, $variables);
+  $message['subject'] .= _yubikey_mail_text($key . '_subject', $language, $variables);
+  $message['body'][] = _yubikey_mail_text($key . '_body', $language, $variables);
 }
 
 /**
@@ -541,7 +574,7 @@ function yubikey_mail($key, &$message, $params) {
 function _yubikey_mail_text($key, $language = NULL, $variables = array()) {
   $langcode = isset($language) ? $language->language : NULL;
 
-  if ($admin_setting = variable_get('yubikey_mail_'. $key, FALSE)) {
+  if ($admin_setting = variable_get('yubikey_mail_' . $key, FALSE)) {
     // An admin setting overrides the default string.
     return strtr($admin_setting, $variables);
   }
@@ -549,13 +582,13 @@ function _yubikey_mail_text($key, $language = NULL, $variables = array()) {
     // No override, return default string.
     switch ($key) {
       case 'yubikey_lost_subject':
-        return t('Confirm loss of YubiKey for !username at !site', $variables, $langcode);
+        return t('Confirm loss of YubiKey for !username at !site', $variables, array('langcode' => $langcode));
       case 'yubikey_lost_body':
-        return t("Hello !username,\n\nSomeone, (probably you) has reported loss of YubiKey associated with your account at !site.\n\nTo confirm the authenticity of the request and to prevent any possible misuse of the lost YubiKey by an unauthorized person at !site, please click on the link below or copy and paste it in your browser address bar:\n\n!yubikey_lost_confirmation_url\n\nThis is a one-time link, so it can be used only once. It expires after one day and nothing will happen if it is not used.\n\nPlease note, once you confirm by clicking the above link, all the YubiKeys associated with your account will be temporarily blocked.", $variables, $langcode);
+        return t("Hello !username,\n\nSomeone, (probably you) has reported loss of YubiKey associated with your account at !site.\n\nTo confirm the authenticity of the request and to prevent any possible misuse of the lost YubiKey by an unauthorized person at !site, please click on the link below or copy and paste it in your browser address bar:\n\n!yubikey_lost_confirmation_url\n\nThis is a one-time link, so it can be used only once. It expires after one day and nothing will happen if it is not used.\n\nPlease note, once you confirm by clicking the above link, all the YubiKeys associated with your account will be temporarily blocked.", $variables, array('langcode' => $langcode));
       case 'yubikey_lost_confirmed_subject':
-        return t('Confirmation of loss of YubiKey for !username at !site', $variables, $langcode);
+        return t('Confirmation of loss of YubiKey for !username at !site', $variables, array('langcode' => $langcode));
       case 'yubikey_lost_confirmed_body':
-        return t("Hello,\n\n!username has reported and confirmed loss of YubiKey and hence, all the YubiKeys associated with user account !username have been blocked.", $variables, $langcode);
+        return t("Hello,\n\n!username has reported and confirmed loss of YubiKey and hence, all the YubiKeys associated with user account !username have been blocked.", $variables, array('langcode' => $langcode));
     }
   }
 }
@@ -579,7 +612,7 @@ function yubikey_mail_tokens($account, $language) {
     '!site' => variable_get('site_name', 'Drupal'),
     '!yubikey_lost_confirmation_url' => yubikey_lost_confirmation_url($account),
     '!mailto' => $account->mail,
-    '!date' => format_date(time(), 'medium', '', NULL, $language->language),
+    '!date' => format_date(REQUEST_TIME, 'medium', '', NULL, $language->language),
   );
   return $tokens;
 }
@@ -594,6 +627,6 @@ function yubikey_mail_tokens($account, $language) {
  *   A unique one-time URL for confirmation of loss of YubiKey
  */
 function yubikey_lost_confirmation_url($account) {
-  $timestamp = time();
-  return url("user/yubikey/lost/confirm/$account->uid/$timestamp/". user_pass_rehash($account->pass, $timestamp, $account->login), array('absolute' => TRUE));
+  $timestamp = REQUEST_TIME;
+  return url("user/yubikey/lost/confirm/$account->uid/$timestamp/" . user_pass_rehash($account->pass, $timestamp, $account->login), array('absolute' => TRUE));
 }

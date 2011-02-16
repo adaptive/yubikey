@@ -22,7 +22,7 @@ require_once 'PEAR.php';
  * $otp = "ccbbddeertkrctjkkcglfndnlihhnvekchkcctif";
  *
  * # Generate a new id+key from https://api.yubico.com/get-api-key/
- * $yubi = &new Auth_Yubico('42', 'FOOBAR=');
+ * $yubi = new Auth_Yubico('42', 'FOOBAR=');
  * $auth = $yubi->verify($otp);
  * if (PEAR::isError($auth)) {
  *    print "<p>Authentication failed: " . $auth->getMessage();
@@ -285,6 +285,7 @@ class Auth_Yubico
 	  if ($sl) $params['sl'] = $sl;
 	  if ($timeout) $params['timeout'] = $timeout;
 	  ksort($params);
+	  $parameters = '';
 	  foreach($params as $p=>$v) $parameters .= "&" . $p . "=" . $v;
 	  $parameters = ltrim($parameters, "&");
 	  
@@ -341,7 +342,7 @@ class Auth_Yubico
 	      ;
 
 	    while ($info = curl_multi_info_read($mh)) {
-	      if ($info['result'] == CURL_OK) {
+	      if ($info['result'] == CURLE_OK) {
 
 		/* We have a complete response from one server. */
 
@@ -374,20 +375,20 @@ class Auth_Yubico
 		  } 
 		  elseif ($this->_key <> "") {
 		    /* Case 2. Verify signature first */
-		    $rows = split("\r\n", $str);
+		    $rows = explode("\r\n", $str);
 		    $response=array();
 		    while (list($key, $val) = each($rows)) {
 		      /* = is also used in BASE64 encoding so we only replace the first = by # which is not used in BASE64 */
 		      $val = preg_replace('/=/', '#', $val, 1);
-		      $row = split("#", $val);
-		      $response[$row[0]] = $row[1];
+		      $row = explode("#", $val);
+		      if(count($row)==2) $response[$row[0]] = $row[1];
 		    }
 		    
 		    $parameters=array('nonce','otp', 'sessioncounter', 'sessionuse', 'sl', 'status', 't', 'timeout', 'timestamp');
 		    sort($parameters);
 		    $check=Null;
 		    foreach ($parameters as $param) {
-		      if ($response[$param]!=null) {
+		      if (isset($response[$param]) && $response[$param]!=null) {
 			if ($check) $check = $check . '&';
 			$check = $check . $param . '=' . $response[$param];
 		      }
@@ -397,7 +398,7 @@ class Auth_Yubico
 		      base64_encode(hash_hmac('sha1', utf8_encode($check),
 					      $this->_key, true));
 
-		    if($response[h] == $checksignature) {
+		    if($response['h'] == $checksignature) {
 		      if ($status == 'REPLAYED_OTP') {
 			if (!$wait_for_all) { $this->_response = $str; }
 			$replay=True;
@@ -457,3 +458,4 @@ class Auth_Yubico
 	}
 }
 ?>
+

@@ -2,5 +2,10 @@
 name        = YubiKey
 description = "Provides YubiKey based strong two-factor user authentication capabilities to your site."
 package     = Authentication
-core        = 6.x
+core        = 7.x
+
+files[]     = yubikey.module
+files[]     = yubikey.inc
+files[]     = yubikey.install
+files[]     = yubikey.pages.inc
 

@@ -1,4 +1,5 @@
 <?php
+// $Id$
 /*
  * @file
  * User page callbacks for the yubikey module.
@@ -10,7 +11,7 @@
  * Form builder: YubiKey lost reporting page.
  */
 function yubikey_lost() {
-  drupal_add_js(drupal_get_path('module', 'yubikey') . '/yubikey.js', 'module');
+  drupal_add_js(drupal_get_path('module', 'yubikey') . '/yubikey.js', 'file');
 
   $form['name'] = array(
     '#type'          => 'textfield',
@@ -39,27 +40,44 @@ function yubikey_lost() {
 }
 
 function yubikey_lost_validate($form, &$form_state) {
-  $name = trim($form_state['values']['name']);
   $forgot_pass = $form_state['values']['yubikey_forgot_pass'];
-  if(!$forgot_pass && empty($form_state['values']['pass'])) {
+  if (!$forgot_pass && empty($form_state['values']['pass'])) {
     form_set_error('pass', t('Password field is required.'));
     return;
   }
   
   // Try to load by email and pass.
-  if(!$forgot_pass) {
-    $account = user_load(array('mail' => $name, 'pass' => trim($form_state['values']['pass']), 'status' => 1));
+  if (!$forgot_pass) {
+    $account = db_query(
+      "SELECT * FROM {users} WHERE mail = :name AND pass = :pass AND status = 1", 
+      array(
+        ':name' => $form_state['values']['name'],
+        ':pass' => $form_state['values']['pass'],
+      ))->fetchObject();
   } 
   else {
-    $account = user_load(array('mail' => $name, 'status' => 1));
+    $account = db_query(
+      "SELECT * FROM {users} WHERE mail = :name AND status = 1", 
+      array(
+        ':name' => $form_state['values']['name'],
+      ))->fetchObject();
   }
   if (!$account) {
     // No success, try to load by name and pass.
-    if(!$forgot_pass) {
-      $account = user_load(array('name' => $name, 'pass' => trim($form_state['values']['pass']), 'status' => 1));
+    if (!$forgot_pass) {
+      $account = db_query(
+      "SELECT * FROM {users} WHERE name = :name AND pass = :pass AND status = 1", 
+      array(
+        ':name' => $form_state['values']['name'],
+        ':pass' => $form_state['values']['pass'],
+      ))->fetchObject();
     } 
     else {
-      $account = user_load(array('name' => $name, 'status' => 1));
+      $account = db_query(
+      "SELECT * FROM {users} WHERE name = :name AND status = 1", 
+      array(
+        ':name' => $form_state['values']['name'],
+      ))->fetchObject();
     }
   }
 
@@ -67,7 +85,7 @@ function yubikey_lost_validate($form, &$form_state) {
     // Blocked accounts cannot report loss of YubiKey,
     // check provided username and email against access rules.
     if (drupal_is_denied('user', $account->name) || drupal_is_denied('mail', $account->mail)) {
-      form_set_error('name', t('%name is not allowed to report loss of YubiKey.', array('%name' => $name)));
+      form_set_error('name', t('%name is not allowed to report loss of YubiKey.', array('%name' => $form_state['values']['name'])));
     }
   }
 
@@ -75,11 +93,11 @@ function yubikey_lost_validate($form, &$form_state) {
     form_set_value(array('#parents' => array('account')), $account, $form_state);
   }
   else {
-    if(!$forgot_pass) {
+    if (!$forgot_pass) {
       form_set_error('name', t('Sorry, unrecognized username/e-mail address or password.'));
     } 
     else {
-      form_set_error('name', t('Sorry, %name is not recognized as a user name or an e-mail address.', array('%name' => $name)));
+      form_set_error('name', t('Sorry, %name is not recognized as a user name or an e-mail address.', array('%name' => $form_state['values']['name'])));
     }
   }
 }
@@ -103,37 +121,46 @@ function yubikey_lost_submit($form, &$form_state) {
 /**
  * Menu callback: process one-time YubiKey Lost confirmation link and block all YubiKeys associated with the specified user account on success.
  */
-function yubikey_lost_confirm(&$form_state, $uid, $timestamp, $hashed_pass) {
+function yubikey_lost_confirm($form, &$form_state, $uid, $timestamp, $hashed_pass) {
   // Time out, in seconds, until confirmation URL expires. 24 hours = 86400 seconds.
   $timeout = 86400;
-  $current = time();
-  $account = user_load(array('uid' => $uid, 'status' => 1));
+  $current = REQUEST_TIME;
+  $account = db_query(
+    "SELECT * FROM {users} WHERE uid = :uid AND status = 1", 
+    array(
+      ':uid' => $uid
+    ))->fetchObject();
   if ($timestamp < $current && isset($account->uid)) {
     // Check if link has expired.
     if ($current - $timestamp > $timeout) {
       // Link has expired.
       drupal_set_message(t('You have tried to use a one-time YubiKey Lost confrimation link that has expired.'));
     } 
-    else if ($account->uid && $timestamp > $account->login && $hashed_pass == user_pass_rehash($account->pass, $timestamp, $account->login)) {
+    elseif ($account->uid && $timestamp > $account->login && $hashed_pass == user_pass_rehash($account->pass, $timestamp, $account->login)) {
       // Check if user has associated YubiKeys.
-      $result = db_query("SELECT COUNT(aid) FROM {authmap} WHERE uid = %d", $account->uid);
-      $count_aid = db_result($result);
-      if($count_aid != '') { 
+      $count_aid = db_query("SELECT COUNT(aid) FROM {authmap} WHERE uid = :uid", array(':uid' => $account->uid))->fetchField();
+      if ($count_aid != '') { 
         // User has associated YubiKeys.
 
         // Check if link has been already used.
-        $result = db_query("SELECT MAX(created) FROM {yubikey_blocked} WHERE uid = %d", $account->uid);
-        $max_created = db_result($result);
-        if($max_created == '') $max_created = 0;
-        if($timestamp > $max_created) {
-          db_query("DELETE FROM {yubikey_blocked} WHERE uid = %d", $account->uid);
-          db_query("INSERT INTO {yubikey_blocked} SELECT aid, uid, 1, %d FROM {authmap} WHERE uid = %d", $timestamp, $account->uid);
+        $max_created = db_query("SELECT MAX(created) FROM {yubikey_blocked} WHERE uid = :uid", array(':uid' => $account->uid))-fetchField();
+        if ($max_created == '') $max_created = 0;
+        if ($timestamp > $max_created) {
+          db_delete('yubikey_blocked')
+            ->condition('uid', $account->uid)
+            ->execute();
+          db_query(
+            "INSERT INTO {yubikey_blocked} SELECT aid, uid, 1, :timestamp FROM {authmap} WHERE uid = :uid", 
+            array(
+              ':timestamp' => $timestamp, 
+              ':uid' => $account->uid
+            ));
           // Send yubikey lost reported notification mail using current language.
           _yubikey_mail_notify('yubikey_lost_confirmed', $account, $language);
           watchdog('yubikey', 'User %name confirmed loss of YubiKey at time %timestamp.', array('%name' => $account->name, '%timestamp' => $timestamp));
 
           $yk_authscheme = variable_get('yubikey_authscheme', 'un_pwd');
-          if(($yk_authscheme == 'un_pwd_yk' && variable_get('yubikey_optional_if_lost', 0)) || $yk_authscheme == 'un_or_yk_pwd') {
+          if (($yk_authscheme == 'un_pwd_yk' && variable_get('yubikey_optional_if_lost', 0)) || $yk_authscheme == 'un_or_yk_pwd') {
             drupal_set_message(t('Thanks for reporting loss of your YubiKey. You can temporarily log in to this site using your Username and Password until a new YubiKey is assigned to your account.'));
           } 
           else {
@@ -165,16 +192,16 @@ function yubikey_lost_confirm(&$form_state, $uid, $timestamp, $hashed_pass) {
  * Menu callback; Manage YubiKey identities for the specified user.
  */
 function yubikey_user_identities($account) {
-  drupal_set_title(check_plain($account->name));
-  drupal_add_css(drupal_get_path('module', 'yubikey') .'/yubikey.css', 'module');
+  drupal_set_title($account->name);
+  drupal_add_css(drupal_get_path('module', 'yubikey') . '/yubikey.css', 'module');
 
   $header = array(t('YubiKey ID'), t('Status'), array('data' => t('Operations'), 'colspan' => 2, 'align' => 'center'));
   $rows = array();
 
-  $result = db_query("SELECT a.*, b.status FROM {authmap} a LEFT JOIN {yubikey_blocked} b ON a.aid = b.aid WHERE a.module = 'yubikey' AND a.uid = %d", $account->uid);
+  $result = db_query("SELECT a.*, b.status FROM {authmap} a LEFT JOIN {yubikey_blocked} b ON a.aid = b.aid WHERE a.module = 'yubikey' AND a.uid = :uid", array(':uid' => $account->uid));
   
-  while ($identity = db_fetch_object($result)) {
-    if($identity->status == '') { // YubiKey is active.
+  while ($identity = $result->fetchObject()) {
+    if ($identity->status == '') { // YubiKey is active.
       $rows[] = array(check_plain($identity->authname), t('Active'), l(t('Block'), 'user/' . $account->uid . '/yubikey/block/' . $identity->aid), l(t('Delete'), 'user/' . $account->uid . '/yubikey/delete/' . $identity->aid));
     } 
     else {
@@ -182,15 +209,16 @@ function yubikey_user_identities($account) {
     }
   }
 
-  if(count($rows) > 0) {
-    $output = theme('table', $header, $rows);
+  if (count($rows) > 0) {
+    $build['yubikey_table'] = array(
+      '#theme' => 'table',
+      '#header' => $header,
+      '#rows' => $rows,
+    );
   } 
-  else {
-    $output = "";    
-  }
 
-  $output .= drupal_get_form('yubikey_user_add');
-  return $output;
+  $build['yubikey_user_add'] = drupal_get_form('yubikey_user_add');
+  return $build;
 }
 
 /**
@@ -200,6 +228,7 @@ function yubikey_user_add() {
   $form['yubikey_otp'] = array(
     '#type'          => 'textfield',
     '#required'      => TRUE,
+    '#size'          => 45,
     '#title'         => t('YubiKey OTP')
   );
   $form['submit'] = array('#type' => 'submit', '#value' => t('Add a YubiKey'));
@@ -211,15 +240,15 @@ function yubikey_user_add_validate($form, &$form_state) {
 
   $otp = $form_state['values']['yubikey_otp'];
   // Check if OTP is valid.
-  if(yubikey_is_otp($otp)) {
+  if (yubikey_is_otp($otp)) {
     // Validate OTP.
-    if(!yubikey_validate_otp($otp, $errstr)) {
-      form_set_error('yubikey_otp', t('YubiKey OTP validation failed with message: ') . $errstr);
+    if (!yubikey_validate_otp($otp, $errstr)) {
+      form_set_error('yubikey_otp', t('YubiKey OTP validation failed with message:') . ' ' . $errstr);
     } 
     else {
       // Check if YubiKey is already in use.
       $yk_identity = yubikey_get_identity($otp);
-      if (db_result(db_query("SELECT authname FROM {authmap} WHERE module = 'yubikey' AND LOWER(authname) = LOWER('%s')", $yk_identity))) {
+      if (db_query("SELECT authname FROM {authmap} WHERE module = 'yubikey' AND LOWER(authname) = LOWER(?)", array($yk_identity))->fetchField()) {
         form_set_error('yubikey_otp', t('That YubiKey is already in use on this site.'));
       }
     }
@@ -233,14 +262,20 @@ function yubikey_user_add_validate($form, &$form_state) {
  * Add a YubiKey identity.
  */
 function yubikey_user_add_submit($form, &$form_state) {
-  if(!form_get_errors()) {
+  if (!form_get_errors()) {
     module_load_include('inc', 'yubikey');
     
     $otp = $form_state['values']['yubikey_otp']; 
     $yk_identity = yubikey_get_identity($otp);
-    db_query("INSERT INTO {authmap} (uid, authname, module) VALUES (%d, LOWER('%s'), 'yubikey')", arg(1), $yk_identity);
-    if (db_affected_rows()) {
-      $user = yubikey_user_load(array('uid' => arg(1), 'authname' => $yk_identity));
+    $aid = db_insert('authmap')
+      ->fields(array(
+        'uid' => arg(1),
+        'authname' => $yk_identity,
+        'module' => 'yubikey',
+      ))
+      ->execute();
+    if ($aid) {
+      $user = yubikey_user_load_info(array('uid' => arg(1), 'authname' => $yk_identity));
       $variables = array('%yk_identity' => $yk_identity, '%name' => $user->name);
       drupal_set_message(t('YubiKey %yk_identity has been added.', $variables)); 
       watchdog('yubikey', 'Added YubiKey %yk_identity for user %name.', $variables, WATCHDOG_NOTICE);
@@ -251,12 +286,15 @@ function yubikey_user_add_submit($form, &$form_state) {
 /**
  * Menu callback: activate a YubiKey identity.
  */
-function yubikey_user_activate($form_state, $account, $aid = 0) {
-  $yk_identity = db_result(db_query('SELECT authname FROM {authmap} WHERE uid = %d AND aid = %d', $account->uid, $aid));
+function yubikey_user_activate($form, $form_state, $account, $aid = 0) {
+  $yk_identity = db_query('SELECT authname FROM {authmap} WHERE uid = :uid AND aid = :aid', array(':uid' => $account->uid, ':aid' => $aid))->fetchField();
   
-  if($yk_identity) {
-    db_query("DELETE FROM {yubikey_blocked} WHERE uid = %d AND aid = %d", $account->uid, $aid);
-    if (db_affected_rows()) {
+  if ($yk_identity) {
+    $id = db_delete('yubikey_blocked')
+      ->condition('uid', $account->uid)
+      ->condition('aid', $aid)
+      ->execute();
+    if ($id) {
       $variables = array('%yk_identity' => $yk_identity, '%name' => $account->name);
       drupal_set_message(t('YubiKey %yk_identity has been activated.', $variables));
       watchdog('yubikey', 'Activated YubiKey %yk_identity for user %name.', $variables, WATCHDOG_NOTICE);
@@ -268,12 +306,19 @@ function yubikey_user_activate($form_state, $account, $aid = 0) {
 /**
  * Menu callback: block a YubiKey identity.
  */
-function yubikey_user_block($form_state, $account, $aid = 0) {
-  $yk_identity = db_result(db_query('SELECT authname FROM {authmap} WHERE uid = %d AND aid = %d', $account->uid, $aid));
+function yubikey_user_block($form, $form_state, $account, $aid = 0) {
+  $yk_identity = db_query('SELECT authname FROM {authmap} WHERE uid = :uid AND aid = :aid', array(':uid' => $account->uid, ':aid' => $aid))->fetchField();
 
-  if($yk_identity) {
-    db_query("INSERT INTO {yubikey_blocked}(aid, uid, status, created) VALUES(%d, %d, 1, %d)", $aid, $account->uid, 0);
-    if (db_affected_rows()) {
+  if ($yk_identity) {
+    $result = db_insert('yubikey_blocked')
+      ->fields(array(
+        'aid' => $aid,
+        'uid' => $account->uid,
+        'status' => 1,
+        'created' => 0,
+      ))
+      ->execute();
+    if ($result) {
       $variables = array('%yk_identity' => $yk_identity, '%name' => $account->name);
       drupal_set_message(t('YubiKey %yk_identity has been blocked.', $variables));
       watchdog('yubikey', 'Blocked YubiKey %yk_identity for user %name.', $variables, WATCHDOG_NOTICE);
@@ -285,10 +330,10 @@ function yubikey_user_block($form_state, $account, $aid = 0) {
 /**
  * Menu callback: present a confirmation page to delete the specified YubiKey identity.
  */
-function yubikey_user_delete_confirm($form_state, $account, $aid = 0) {
-  $yk_identity = db_result(db_query('SELECT authname FROM {authmap} WHERE uid = %d AND aid = %d', $account->uid, $aid));
+function yubikey_user_delete_confirm($form, &$form_state, $account, $aid = 0) {
+  $yk_identity = db_query('SELECT authname FROM {authmap} WHERE uid = :uid AND aid = :aid', array(':uid' => $account->uid, ':aid' => $aid))->fetchField();
 
-  if($yk_identity) {
+  if ($yk_identity) {
     $form = array();
     $form['uid'] = array(
       '#type'        => 'value',
@@ -316,9 +361,15 @@ function yubikey_user_delete_confirm($form_state, $account, $aid = 0) {
  * Delete a YubiKey identity.
  */
 function yubikey_user_delete_confirm_submit($form, &$form_state) {
-  db_query("DELETE FROM {yubikey_blocked} WHERE uid = %d AND aid = %d", $form_state['values']['uid'], $form_state['values']['aid']);
-  db_query("DELETE FROM {authmap} WHERE uid = %d AND aid = %d", $form_state['values']['uid'], $form_state['values']['aid']);
-  if (db_affected_rows()) {
+  $res1 = db_delete('yubikey_blocked')
+    ->condition('uid', $form_state['values']['uid'])
+    ->condition('aid', $form_state['values']['aid'])
+    ->execute();
+  $res2 = db_delete('authmap')
+    ->condition('uid', $form_state['values']['uid'])
+    ->condition('aid', $form_state['values']['aid'])
+    ->execute();
+  if ($res1 && $res2) {
     $variables = array('%yk_identity' => $form_state['values']['yk_identity'], '%name' => $form_state['values']['name']);
     drupal_set_message(t('YubiKey %yk_identity has been deleted.', $variables));
     watchdog('yubikey', 'Deleted YubiKey %yk_identity for user %name.', $variables, WATCHDOG_NOTICE);
@@ -333,7 +384,7 @@ function yubikey_user_delete_confirm_submit($form, &$form_state) {
  * Form builder: configure YubiKey settings for this site.
  */
 function yubikey_admin_settings() {
-  drupal_add_js(drupal_get_path('module', 'yubikey') . '/yubikey_admin.js', 'module');
+  drupal_add_js(drupal_get_path('module', 'yubikey') . '/yubikey_admin.js', 'file');
   
   $form = array(
     '#validate'      => array('yubikey_admin_settings_validate'),
@@ -365,14 +416,14 @@ function yubikey_admin_settings() {
     '#required'      => TRUE,
     '#prefix'        => '<div id="yk_fields_div">'
   );
-  $form['yubikey_optional'] = array (
+  $form['yubikey_optional'] = array(
     '#type'          => 'checkbox',
     '#title'         => t('Make YubiKey OTP optional until assigned'),
     '#default_value' => variable_get('yubikey_optional', FALSE),
     '#description'   => t('If enabled, users will be able to log into your site using Username and Passowrd as long as no YubiKey has been assigned. Once a YubiKey is assigned to a particular user account, that user must provide a YubiKey OTP along with the Username and Password in order to login.'),
     '#prefix'        => '<div id="yk_optional_div">'
   );
-  $form['yubikey_optional_if_lost'] = array (
+  $form['yubikey_optional_if_lost'] = array(
     '#type'          => 'checkbox',
     '#title'         => t('Make YubiKey OTP optional in case of loss of YubiKey'),
     '#default_value' => variable_get('yubikey_optional_if_lost', FALSE),
@@ -505,7 +556,7 @@ function yubikey_admin_settings() {
     '#title'         => t('Lost YubiKey confirmation email'),
     '#collapsible'   => TRUE,
     '#collapsed'     => $yk_collapsed,
-    '#description'   => t('When a user reports loss of YubiKey, a customized e-mail message with a confirmation link is sent to the registered e-mail addressof the user.') .' '. $email_token_help,
+    '#description'   => t('When a user reports loss of YubiKey, a customized e-mail message with a confirmation link is sent to the registered e-mail addressof the user.') . ' ' . $email_token_help,
   );
   $form['yubikey_mail']['yubikey_lost']['yubikey_mail_yubikey_lost_subject'] = array(
     '#type'          => 'textfield',
@@ -554,9 +605,9 @@ function yubikey_admin_settings() {
 function yubikey_admin_settings_validate($form_id, &$form_state) {
   module_load_include('inc', 'yubikey');
 
-  for($i = 1; $i <= 5; $i++) {
+  for ($i = 1; $i <= 5; $i++) {
     $url = trim($form_state['values']['yubikey_valserver']['urls'][$i]);
-    if(!empty($url) && !yubikey_valid_url($url)) {
+    if (!empty($url) && !yubikey_valid_url($url)) {
       form_set_error('yubikey_valserver][urls][' . $i, t('The URL #%d %url is not valid.', array('%d' => $i, '%url' => $url1)));
     }
   }
