@@ -1,4 +1,3 @@
-// $Id$
 
 $(document).ready(function() {
   if(!$("#edit-yubikey-enable").is(':checked')) {

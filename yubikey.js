@@ -1,4 +1,3 @@
-// $Id$
 
 Drupal.behaviors.yubikey = function (context) {
   var $loginElements   = $("#edit-name-wrapper, #edit-pass-wrapper, li.openid-link, li.yubikey-link");
