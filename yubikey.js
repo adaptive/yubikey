@@ -1,4 +1,3 @@
-// $Id$
   (function ($) {
   function handleFocus() {
     if($('#edit-name').length > 0) {

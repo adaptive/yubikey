@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /*
  * @file
  * Implement YubiKey strong two-factor authentication support for Drupal.
