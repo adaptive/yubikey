@@ -2,6 +2,7 @@ name        = YubiKey
 description = "Provides YubiKey based strong two-factor user authentication capabilities to your site."
 package     = Authentication
 core        = 7.x
+php         = 5.2
 
 files[]     = yubikey.module
 files[]     = yubikey.inc
