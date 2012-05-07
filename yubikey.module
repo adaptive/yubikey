@@ -222,7 +222,8 @@ function yubikey_login_form_alter(&$form, $form_state, $form_id) {
     '#size'          => ($form_id == 'user_login') ? 58 : 13,
     '#maxlength'     => 255,
     '#required'      => TRUE,
-    '#weight'        => 1
+    '#weight'        => 1,
+    '#attributes'    => array( 'autocomplete' => 'off' )
   );
 
   if($form_id == 'user_login_block') {
@@ -396,7 +397,8 @@ function yubikey_pass_form_alter(&$form, $form_state, $form_id) {
     '#size'          => 58,
     '#maxlength'     => 255,
     '#required'      => TRUE,
-    '#weight'        => 1
+    '#weight'        => 1,
+    '#attributes'    => array( 'autocomplete' => 'off' )
   );
   
   $form['submit']['#weight'] = 2;  

@@ -200,7 +200,8 @@ function yubikey_user_add() {
   $form['yubikey_otp'] = array(
     '#type'          => 'textfield',
     '#required'      => TRUE,
-    '#title'         => t('YubiKey OTP')
+    '#title'         => t('YubiKey OTP'),
+    '#attributes'    => array( 'autocomplete' => 'off' )
   );
   $form['submit'] = array('#type' => 'submit', '#value' => t('Add a YubiKey'));
   return $form;
