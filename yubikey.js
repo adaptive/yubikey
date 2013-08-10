@@ -47,7 +47,7 @@
     }
   });
   
-  Drupal.behaviors.yubikey = function (context) {
+  Drupal.behaviors.yubikey = {
     attach: function(context) {
       var $yubikeyElements = $("#edit-yubikey-otp-wrapper");
     
@@ -74,7 +74,7 @@
     }
   };
   
-  Drupal.behaviors.openid = function (context) {
+  Drupal.behaviors.openid = {
     attach: function(context) {
       var $loginElements = $("#edit-name-wrapper, #edit-pass-wrapper, li.openid-link");
       var $openidElements = $("#edit-openid-identifier-wrapper, li.user-link");
