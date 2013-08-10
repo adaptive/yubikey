@@ -306,7 +306,9 @@ function yubikey_login_otp_validate($form, &$form_state) {
  
   $yk_authscheme = variable_get('yubikey_authscheme', 'un_pwd'); 
   $otp = $form_state['values']['yubikey_otp'];
-  $name = drupal_strtolower(trim($form_state['values']['name']));
+  if (isset($form_state['values']['name'])) {
+    $name = drupal_strtolower(trim($form_state['values']['name']));
+  }
   if ($otp) {
     // Check if OTP is valid.
     if (!yubikey_is_otp($otp)) {
@@ -389,7 +391,7 @@ function yubikey_login_authenticate_validate($form, &$form_state) {
     // encountered in the validation process.
     if (!form_get_errors() && !empty($form_state['values']['name']) && $account) {
       $user = $account;
-      user_authenticate_finalize($form_state['values']);
+      user_login_finalize($form_state['values']);
       return $user;
     }
     else {
