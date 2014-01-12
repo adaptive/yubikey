@@ -390,9 +390,7 @@ function yubikey_login_authenticate_validate($form, &$form_state) {
     // The user is about to be logged in, so make sure no error was previously
     // encountered in the validation process.
     if (!form_get_errors() && !empty($form_state['values']['name']) && $account) {
-      $user = $account;
-      user_login_finalize($form_state['values']);
-      return $user;
+      $form_state['uid'] = $account->uid;
     }
     else {
       watchdog('user', 'Login attempt failed for %user.', array('%user' => $form_state['values']['name']));
