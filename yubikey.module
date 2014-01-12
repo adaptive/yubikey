@@ -399,18 +399,12 @@ function yubikey_login_authenticate_validate($form, &$form_state) {
     }
   }
   else {
-    /*$password = trim($form_state['values']['pass']);
-    $form_state['uid'] = user_authenticate($form_state['values']['name'], $password);*/
     user_login_authenticate_validate($form, $form_state);
   }
 }
 
 function yubikey_login_final_validate($form, &$form_state) {
   user_login_final_validate($form, $form_state);
-  /*global $user;
-  if (!$user->uid) {
-    form_set_error('name', t('Sorry, authentication failed.')); 
-  }*/
 }
 
 /**
