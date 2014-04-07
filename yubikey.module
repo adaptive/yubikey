@@ -279,7 +279,11 @@ function yubikey_login_form_alter(&$form, $form_state, $form_id) {
 }
 
 function yubikey_login_default_validators() {
-  return array('yubikey_login_otp_validate', 'user_login_name_validate', 'yubikey_login_authenticate_validate', 'yubikey_login_final_validate');
+  $validators = array('yubikey_login_otp_validate', 'user_login_name_validate', 'yubikey_login_authenticate_validate', 'yubikey_login_final_validate');
+  if(module_exists('logintoboggan')) {
+    array_unshift($validators, "logintoboggan_user_login_validate");
+  }
+  return $validators;
 }
 
 function yubikey_login_otp_validate($form, &$form_state) {
